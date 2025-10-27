@@ -20,13 +20,23 @@ variable "enable_alibaba" {
   default     = false
 }
 
-module "compute_aws" {
+// Conditional inclusion: simulated_aws is used when simulate=true; aws_compute is used when simulate=false
+
+module "simulated_aws" {
   source   = "./modules/simulated_compute"
-  # If you set simulate = false and provide AWS credentials, this module can be replaced
-  # with a provider-specific module that creates real AWS resources.
+  count    = var.simulate ? 1 : 0
   name     = "${var.project_name}-aws"
   region   = "us-east-1"
   simulate = var.simulate
+}
+
+module "aws_compute" {
+  source        = "./modules/aws_compute"
+  count         = var.simulate ? 0 : 1
+  name          = "${var.project_name}-aws"
+  region        = "us-east-1"
+  instance_type = "t2.micro"
+  app_port      = 8501
 }
 
 # Include Alibaba only when explicitly enabled (most users won't have Alibaba credentials)
@@ -38,9 +48,14 @@ module "compute_alibaba" {
   simulate = var.simulate
 }
 
-output "simulated_resources" {
-  value = {
-    aws = module.compute_aws.resources
-    alibaba = var.enable_alibaba && length(module.compute_alibaba) > 0 ? module.compute_alibaba[0].resources : []
-  }
+output "aws_simulated_resources" {
+  value = var.simulate && length(module.simulated_aws) > 0 ? module.simulated_aws[0].resources : []
+}
+
+output "aws_instance_id" {
+  value = var.simulate ? "" : (length(module.aws_compute) > 0 ? module.aws_compute[0].instance_id : "")
+}
+
+output "aws_instance_public_ip" {
+  value = var.simulate ? "" : (length(module.aws_compute) > 0 ? module.aws_compute[0].public_ip : "")
 }
