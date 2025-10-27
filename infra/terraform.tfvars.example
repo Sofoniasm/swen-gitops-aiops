@@ -1,0 +1,3 @@
+// Example terraform.tfvars
+simulate = true
+project_name = "swen-cloud-intel"
