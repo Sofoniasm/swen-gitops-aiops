@@ -14,17 +14,25 @@ variable "project_name" {
   default = "swen-cloud-intel"
 }
 
+variable "enable_alibaba" {
+  description = "When true the alibaba simulated/real module will be included. Default false because most devs won't have an Alibaba account."
+  type        = bool
+  default     = false
+}
+
 module "compute_aws" {
   source   = "./modules/simulated_compute"
-  provider = "aws"
+  # If you set simulate = false and provide AWS credentials, this module can be replaced
+  # with a provider-specific module that creates real AWS resources.
   name     = "${var.project_name}-aws"
   region   = "us-east-1"
   simulate = var.simulate
 }
 
+# Include Alibaba only when explicitly enabled (most users won't have Alibaba credentials)
 module "compute_alibaba" {
   source   = "./modules/simulated_compute"
-  provider = "alibaba"
+  count    = var.enable_alibaba ? 1 : 0
   name     = "${var.project_name}-alibaba"
   region   = "cn-hangzhou"
   simulate = var.simulate
@@ -32,7 +40,7 @@ module "compute_alibaba" {
 
 output "simulated_resources" {
   value = {
-    aws      = module.compute_aws.resources
-    alibaba  = module.compute_alibaba.resources
+    aws = module.compute_aws.resources
+    alibaba = var.enable_alibaba && length(module.compute_alibaba) > 0 ? module.compute_alibaba[0].resources : []
   }
 }
