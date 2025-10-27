@@ -7,6 +7,28 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# Try to find the default VPC and its subnets. If no subnet exists in the default VPC,
+# create a single subnet so EC2 instances can be launched.
+data "aws_default_vpc" "default" {}
+
+data "aws_subnet_ids" "default" {
+  vpc_id = data.aws_default_vpc.default.id
+}
+
+data "aws_availability_zones" "available" {}
+
+resource "aws_subnet" "default" {
+  count = length(data.aws_subnet_ids.default.ids) == 0 ? 1 : 0
+  vpc_id            = data.aws_default_vpc.default.id
+  cidr_block        = cidrsubnet(data.aws_default_vpc.default.cidr_block, 8, 1)
+  availability_zone = length(data.aws_availability_zones.available.names) > 0 ? data.aws_availability_zones.available.names[0] : null
+
+  tags = {
+    Name    = "${var.name}-subnet"
+    project = "swen-cloud-intel"
+  }
+}
+
 resource "aws_security_group" "app_sg" {
   name        = "${var.name}-sg"
   description = "Security group for SWEN demo app"
@@ -44,6 +66,7 @@ resource "aws_instance" "app" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
   vpc_security_group_ids = [aws_security_group.app_sg.id]
+  subnet_id = var.subnet_id != "" ? var.subnet_id : (length(data.aws_subnet_ids.default.ids) > 0 ? element(data.aws_subnet_ids.default.ids, 0) : aws_subnet.default[0].id)
 
   # Only set key_name if provided
   key_name = length(var.key_name) > 0 ? var.key_name : null

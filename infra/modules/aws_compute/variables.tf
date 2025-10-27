@@ -26,3 +26,9 @@ variable "app_port" {
   type        = number
   default     = 8501
 }
+
+variable "subnet_id" {
+  description = "Optional subnet id to launch the instance into. If empty the module will try to use a default subnet or create one."
+  type        = string
+  default     = ""
+}
